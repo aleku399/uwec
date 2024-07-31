@@ -1,0 +1,63 @@
+.homeWrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.sidebar {
+  margin-right: 16px;
+  width: 20%;
+  height: 100vh;
+  background-color: #333;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: center;
+  padding-top: 20px; /* Adjust the top padding to space out the button */
+}
+
+.autocompleteWrapper {
+  width: 100%;
+  height: 100%;
+}
+
+.autocompleteInput {
+  width: 96%;
+  margin: 84px auto 0 auto;
+  padding: 16px;
+  display: block;
+  border: 1px solid yellow;
+  color: lightcoral;
+}
+
+.suggestionWrapper {
+  margin: 0;
+  width: 96%;
+  overflow-x: hidden;
+  list-style: none;
+  margin: 0 auto;
+  display: block;
+  padding: 4px;
+}
+
+.suggestionWrapper > li {
+  padding: 8px 4px;
+  background-color: lightcoral;
+  margin: 4px 0;
+  cursor: pointer;
+}
+
+.button {
+  margin-top: 16px; /* Adjust margin as needed */
+  padding: 10px 20px;
+  background-color: lightcoral;
+  color: white;
+  border: none;
+  cursor: pointer;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.button:hover {
+  background-color: #ff6347; /* Change color on hover */
+}
