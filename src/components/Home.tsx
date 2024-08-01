@@ -3,18 +3,18 @@
 import React, {useState, useEffect, useCallback, useMemo} from 'react';
 import { MapContainer, TileLayer, GeoJSON, Popup, Marker, ImageOverlay, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
-import { Feature, FeatureCollection, GeoJsonObject, Polygon } from 'geojson';
+import { Feature, FeatureCollection, GeoJsonObject, Polygon, Geometry, GeoJsonProperties } from 'geojson';
 import L from 'leaflet';
 
 import { useLoadScript } from "@react-google-maps/api";
 import { getGeocode, getLatLng } from "use-places-autocomplete";
-import { FaWalking, FaClock, FaMapPin, FaCar, FaBicycle } from "react-icons/fa";
 import "leaflet-routing-machine";
 import "leaflet-routing-machine/dist/leaflet-routing-machine.css";
 
 import PlacesAutocomplete from "@/components/PlacesAutoComplete";
-import NewPlaceModal from "@/components/Modal";
-import RoutingMachine from "@/components/RoutingMachine";
+
+import { FaParking, FaTree, FaWater, FaBuilding, FaPaw, FaTractor, FaMapSigns, FaFlag, FaRunning, FaLayerGroup, FaInfoCircle, FaSearch, FaRegCommentDots, FaClipboardList } from 'react-icons/fa';
+
 
 const geojsonData: FeatureCollection = {
   "type": "FeatureCollection",
@@ -787,8 +787,8 @@ const geojsonData: FeatureCollection = {
       "properties": {
         "FID": 0,
         "Id": 0,
-        "name": "Fam",
-        "type": "fam"
+        "name": "Farm",
+        "type": "farm"
       }
     },
     {
@@ -1807,28 +1807,50 @@ const ParkMap = () => {
   const [lng, setLng] = useState(32.4794036);
   const [userLat, setUserLat] = useState<number | null>(null);
   const [userLng, setUserLng] = useState<number | null>(null);
-  const [nearestMarker, setNearestMarker] = useState<{ lat: number, lng: number, title: string } | null>(null);
-  const [distance, setDistance] = useState<number | null>(null);
-  const [time, setTime] = useState<number | null>(null);
   const [searchedLocation, setSearchedLocation] = useState<boolean>(false);
-  const [transportMode, setTransportMode] = useState<string>("walking");
   const [showModal, setShowModal] = useState(false);
+  const [activeLayers, setActiveLayers] = 
+  useState<string[]>([
+    "Forest", 
+    "Beach", "Buildings", 
+    "Queen Elizabeth Exhibit", 
+    "Farm", "Kidepo", "Lake Mburo", "Lake Victoria", "Parking", "Play Area", "Tileset"]); 
 
+  const [expandedSection, setExpandedSection] = useState<string | null>(null);
   const libraries = useMemo(() => ["places"], []);
 
-  const onEachFeature = (feature: Feature<Polygon>, layer: L.Layer) => {
+  const onEachFeature = (feature: Feature<Geometry, GeoJsonProperties>, layer: L.Layer) => {
     if (feature.properties && feature.properties.name) {
       layer.bindPopup(`<b>${feature.properties.name}</b>`);
     }
   };
 
-  const style = (feature: Feature<Polygon> | undefined) => {
+  const style = (feature: Feature<Geometry, GeoJsonProperties> | undefined) => {
     if (feature?.properties) {
-      switch (feature.properties.title) {
+      switch (feature.properties.name) {
         case 'Forest':
-          return { color: 'green', fillColor: 'green', fillOpacity: 1 };
-        case 'Park Boundary':
-          return { color: 'brown', fillColor: 'transparent', fillOpacity: 0.5 };
+          return { color: 'hsla(102, 64%, 23%, 0.8)', fillColor: 'hsla(102, 64%, 23%, 0.8)', fillOpacity: 1 };
+        case "Beach":
+          return { color: 'hsla(80, 49%, 41%, 0.39)', fillColor: 'hsla(80, 49%, 41%, 0.39)', fillOpacity: 1 };
+        case "Buildings":
+          return { color: 'hsl(40, 85%, 35%)', fillColor: 'hsl(40, 85%, 35%)', fillOpacity: 1 };
+        case "Queen Elizabeth Exhibit":
+          return { color: 'hsl(164, 69%, 30%)', fillColor: 'hsl(164, 69%, 30%)', fillOpacity: 0.5 };
+        case "Farm":
+          return { color: 'hsl(40, 85%, 35%)', fillColor: 'hsl(40, 85%, 35%)', fillOpacity: 0.5 };
+        case "Kidepo":
+            return { color: 'hsl(164, 69%, 30%)', fillColor: 'hsl(164, 69%, 30%)', fillOpacity: 0.5 };
+        case "Lake Mburo":
+            return { color: 'hsl(196, 74%, 66%)', fillColor: 'hsl(196, 74%, 66%)', fillOpacity: 0.5 };
+        case "Lake Victoria":
+            return { color: 'hsl(196, 74%, 66%)', fillColor: 'hsl(196, 74%, 66%)', fillOpacity: 1 };
+        case "Parking":
+            return { color: 'hsla(66, 78%, 7%, 0.5)', fillColor: 'hsla(66, 78%, 7%, 0.5)', fillOpacity: 0.5 };
+        case "Play Area":
+            return { color: 'hsla(74, 42%, 40%, 0.5)', fillColor: 'hsla(74, 42%, 40%, 0.5)', fillOpacity: 0.5 };
+        case "Tileset":
+            return { color: 'hsl(0, 71%, 85%)', fillColor: 'hsl(0, 71%, 85%)', fillOpacity: 0.5 };
+
         default:
           return { color: 'gray', fillColor: 'lightgray', fillOpacity: 0.5 };
       }
@@ -1872,180 +1894,140 @@ const ParkMap = () => {
     return distance;
   }, []);
 
-  const handleNewPlaceSubmit = (
-    name: string,
-    latitude: string,
-    longitude: string
-  ) => {
-    const newMarker = {
-      lat: parseFloat(latitude),
-      lng: parseFloat(longitude),
-      title: name || "New Place",
-      icon: "/zebra.jpg",
-    };
+  useEffect(() => {
+    if (typeof window !== 'undefined' && navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setUserLat(position.coords.latitude);
+          setUserLng(position.coords.longitude);
+        },
+        (error) => {
+          console.error("Error getting user's location: ", error);
+        }
+      );
+    }
+  }, []);
+
+  const handleLayerToggle = (layer: string) => {
+    setActiveLayers((prevLayers) =>
+      prevLayers.includes(layer)
+        ? prevLayers.filter((l) => l !== layer)
+        : [...prevLayers, layer]
+    );
   };
 
-  const handleGeolocation = useCallback(() => {
-    if (typeof window !== 'undefined' && navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setUserLat(position.coords.latitude);
-          setUserLng(position.coords.longitude);
 
-          setLat(position.coords.latitude);
-          setLng(position.coords.longitude);
-        },
-        (error) => {
-          console.error("Error getting user's location: ", error);
-        }
-      );
-    }
-  }, []);
 
-  useEffect(() => {
-    if (typeof window !== 'undefined' && navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setUserLat(position.coords.latitude);
-          setUserLng(position.coords.longitude);
-        },
-        (error) => {
-          console.error("Error getting user's location: ", error);
-        }
-      );
-    }
-  }, []);
-
-  useEffect(() => {
-    if (userLat !== null && userLng !== null) {
-      let nearest = null;
-      let minDistance = Number.MAX_SAFE_INTEGER;
-
-      const dist = calculateDistance(userLat, userLng, lat, lng);
-      if (dist < minDistance) {
-        minDistance = dist;
-        nearest = { lat, lng };
-      }
-
-      setDistance(minDistance);
-      const speed = transportMode === "walking" ? 5 : transportMode === "bicycling" ? 15 : 50; // Average speeds: walking 5 km/h, bicycling 15 km/h, driving 50 km/h
-      setTime(minDistance / speed);
-
-      if (nearest) {
-        setDistance(minDistance);
-        const speed = transportMode === "walking" ? 5 : transportMode === "bicycling" ? 15 : 50; // Average speeds: walking 5 km/h, bicycling 15 km/h, driving 50 km/h
-        setTime(minDistance / speed);
-      }
-    }
-  }, [userLat, userLng, calculateDistance, transportMode, lat, lng]);
-
-//   const RoutingMachine = ({ waypoints, transportMode }: { waypoints: L.LatLng[], transportMode: string }) => {
-//     const map = useMap();
-//     const [control, setControl] = useState<L.Control | null>(null);
-  
-//     useEffect(() => {
-//       if (!map || waypoints.length < 2) return;
-  
-//       const newControl = L.Routing.control({
-//         waypoints: waypoints,
-//         routeWhileDragging: true,
-//         createMarker: () => null, 
-//         lineOptions: {
-//           styles: [
-//             {
-//               color: transportMode === 'walking' ? 'blue' :
-//                      transportMode === 'bicycling' ? 'green' :
-//                      'red',
-//               weight: 4
-//             }
-//           ],
-//           extendToWaypoints: true,
-//           missingRouteTolerance: 10
-//         },
-//         show: false,
-//         addWaypoints: false,
-//         draggableWaypoints: false
-//       } as CustomRoutingControlOptions).addTo(map);
-  
-//       setControl(newControl);
-  
-//       return () => {
-//         if (control) {
-//           map.removeControl(control);
-//         }
-//       };
-//     }, [map, waypoints, transportMode, control]);
-  
-//     return null;
-//   };
-  
-  const defaultLat = 0.0545493;  
-  const defaultLng = 32.4794036; 
-
-  const waypoints = [
-    L.latLng(userLat ?? defaultLat, userLng ?? defaultLng),
-    L.latLng(lat, lng)
+  const layers = [
+    { name: 'Forest', icon: <FaTree className='mx-1' />, id: 'forest' },
+    { name: 'Beach', icon: <FaMapSigns className='mx-1' />, id: 'beach' },
+    { name: 'Buildings', icon: <FaBuilding className='mx-1' />, id: 'buildings' },
+    { name: 'Queen Elizabeth Exhibit', icon: <FaPaw className='mx-1' />, id: 'queen-elizabeth' },
+    { name: 'Farm', icon: <FaTractor className='mx-1' />, id: 'farm' },
+    { name: 'Kidepo', icon: <FaFlag className='mx-1' />, id: 'kidepo' },
+    { name: 'Lake Mburo', icon: <FaWater className='mx-1' />, id: 'lake-mburo' },
+    { name: 'Lake Victoria', icon: <FaWater className='mx-1' />, id: 'lake-victoria' },
+    { name: 'Parking', icon: <FaParking className='mx-1' />, id: 'parking' },
+    { name: 'Play Area', icon: <FaRunning className='mx-1' />, id: 'play-area' },
+    { name: 'Tileset', icon: <FaLayerGroup className='mx-1' />, id: 'tileset' },
   ];
-
 
   if (!isLoaded) {
     return <p>Loading...</p>;
   }
 
   return (
-    <div className="relative w-full h-screen">
-      <PlacesAutocomplete onAddressSelect={handleAddressSelect} handleClick={() => setShowModal(true)} />
-      <div className="absolute bottom-16 left-1/2 transform -translate-x-1/2 z-10 bg-white p-4 rounded-full shadow-md text-red-300">
-        {distance && time && (
-          <span className="flex items-center space-x-1">
-            {transportMode === "walking" && <FaWalking className="w-4 h-4" />}
-            {transportMode === "bicycling" && <FaBicycle className="w-4 h-4" />}
-            {transportMode === "driving" && <FaCar className="w-4 h-4" />}
-            <span className="text-sm">{`${distance.toFixed(2)} km`}</span>
-            <FaClock className="w-4 h-4" />
-            <span className="text-sm">{`${Math.round(time * 60)} mins`}</span>
-          </span>
-        )}
+    <div className="relative w-full h-screen flex">
+      {/* Sidebar */}
+      <div className="w-1/4 h-full p-4 bg-white shadow-lg overflow-y-auto">
+        <h2 className="text-xl font-bold mb-4">Menu</h2>
+        <div className="mb-4">
+          <h3 className="text-lg font-semibold cursor-pointer" onClick={() => setExpandedSection(expandedSection === 'layers' ? null : 'layers')}>
+            <FaLayerGroup className="mr-2" /> Layers {expandedSection === 'layers' ? '-' : '+'}
+          </h3>
+          {expandedSection === 'layers' && (
+            <ul className="pl-4">
+              {layers.map((layer) => (
+                <li key={layer.name}>
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={activeLayers.includes(layer.name)}
+                      onChange={() => handleLayerToggle(layer.name)}
+                    />
+                    {layer.icon}
+                    {layer.name}
+                  </label>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+        <div className="mb-4">
+          <h3 className="text-lg font-semibold cursor-pointer" onClick={() => setExpandedSection(expandedSection === 'info' ? null : 'info')}>
+            <FaInfoCircle className="mr-2" /> Info {expandedSection === 'info' ? '-' : '+'}
+          </h3>
+          {expandedSection === 'info' && (
+            <div className="pl-4">
+              <p>Information about the park...</p>
+            </div>
+          )}
+        </div>
+        <div className="mb-4">
+          <h3 className="text-lg font-semibold cursor-pointer" onClick={() => setExpandedSection(expandedSection === 'legend' ? null : 'legend')}>
+            <FaClipboardList className="mr-2" /> Legend {expandedSection === 'legend' ? '-' : '+'}
+          </h3>
+          {expandedSection === 'legend' && (
+            <div className="pl-4">
+              <p>Legend for map symbols...</p>
+            </div>
+          )}
+        </div>
+        <div className="mb-4">
+          <h3 className="text-lg font-semibold cursor-pointer" onClick={() => setExpandedSection(expandedSection === 'search' ? null : 'search')}>
+            <FaSearch className="mr-2" /> Search {expandedSection === 'search' ? '-' : '+'}
+          </h3>
+          {expandedSection === 'search' && (
+            <div className="pl-4">
+              <PlacesAutocomplete onAddressSelect={handleAddressSelect} />
+            </div>
+          )}
+        </div>
+        <div className="mb-4">
+          <h3 className="text-lg font-semibold cursor-pointer" onClick={() => setExpandedSection(expandedSection === 'reviews' ? null : 'reviews')}>
+            <FaRegCommentDots className="mr-2" /> Reviews {expandedSection === 'reviews' ? '-' : '+'}
+          </h3>
+          {expandedSection === 'reviews' && (
+            <div className="pl-4">
+              <p>User reviews...</p>
+            </div>
+          )}
+        </div>
       </div>
-      <MapContainer center={[lat, lng]} zoom={16} style={{ height: "100vh", width: "100%" }}>
-        <MapViewUpdater lat={lat} lng={lng} />
-        <TileLayer
-          url="https://api.mapbox.com/styles/v1/aleku399/clz70zcqi00r501pfh862a69g/tiles/256/{z}/{x}/{y}@2x?access_token=pk.eyJ1IjoiYWxla3UzOTkiLCJhIjoiY2praDBkbXpzMDlxNjNrcDBqNGUwc3kzeSJ9.Jfwtzm5tQfXFiWBjIQUvUA"
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-        />
-        <GeoJSON data={geojsonData as GeoJsonObject} onEachFeature={onEachFeature} style={style as any} />
-        {userLat !== null && userLng !== null && (
-          <Marker position={[userLat, userLng]} icon={L.icon({
-            iconUrl: '/walk.png', 
-            iconSize: [25, 41],
-            iconAnchor: [12, 41]
-          })}>
-            <Popup>Your Location</Popup>
-          </Marker>
-        )}
-        <RoutingMachine waypoints={waypoints} transportMode={transportMode} />
-      
-      </MapContainer>
-      <div className="absolute bottom-16 left-4 z-10 flex flex-col space-y-2">
-        <button onClick={handleGeolocation} className="bg-blue-500 text-white p-2 rounded">
-          <FaMapPin />
-        </button>
-        <button onClick={() => setTransportMode("walking")} className="bg-green-500 text-white p-2 rounded">
-          <FaWalking />
-        </button>
-        <button onClick={() => setTransportMode("bicycling")} className="bg-yellow-500 text-white p-2 rounded">
-          <FaBicycle />
-        </button>
-        <button onClick={() => setTransportMode("driving")} className="bg-red-500 text-white p-2 rounded">
-          <FaCar />
-        </button>
+      {/* Map */}
+      <div className="w-3/4 h-full">
+        <PlacesAutocomplete onAddressSelect={handleAddressSelect} handleClick={() => setShowModal(true)} />
+        <MapContainer center={[lat, lng]} zoom={16} style={{ height: "100vh", width: "100%" }}>
+          <MapViewUpdater lat={lat} lng={lng} />
+          <TileLayer
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+          />
+          {activeLayers.map(layer => (
+            <GeoJSON
+              key={layer}
+              data={{
+                ...geojsonData,
+                features: geojsonData.features.filter((feature: Feature<Geometry, GeoJsonProperties>) =>
+                  feature?.properties?.name === layer
+                )
+              } as GeoJsonObject}
+              onEachFeature={onEachFeature}
+              style={style as any}
+            />
+          ))}
+        </MapContainer>
       </div>
-      {showModal && (
-        <NewPlaceModal
-          onClose={() => setShowModal(false)}
-          onSubmit={handleNewPlaceSubmit}
-        />
-      )}
     </div>
   );
 };
