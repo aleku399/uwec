@@ -1,9 +1,8 @@
-
-import type { Metadata } from "next";import { Inter } from "next/font/google";
-import "./globals.css";
+import 'bootstrap/dist/css/bootstrap.min.css';
+import './globals.css';
 import 'mapbox-gl/dist/mapbox-gl.css';
-
-import Navbar from "@/components/navbar";
+import type { Metadata } from "next";
+import { Inter } from "next/font/google";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -20,12 +19,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-          {/* <Navbar /> */}
-          <main className="flex min-h-screen w-full flex-col  ">
-            {children}
-          </main>
-         
-        
+        <main>
+          {children}
+        </main>
       </body>
     </html>
   );
