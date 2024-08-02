@@ -1,6 +1,8 @@
-@tailwind base;
+@import "~bootstrap/dist/css/bootstrap.min.css";
+/* @tailwind base;
 @tailwind components;
-@tailwind utilities;
+@tailwind utilities; */
+
 
 /* :root {
   --foreground-rgb: 0, 0, 0;
@@ -38,4 +40,330 @@ body {
 
 .leaflet-right .leaflet-routing-container.leaflet-routing-container-hide {
   display: none;
+}
+
+#map{
+  position: absolute;
+  left: 0px;
+  right: 0px;
+  top: 0px;
+  bottom: 0px;
+  border: lightgray;
+  z-index: -1;
+}
+
+h4{
+  font-weight: bold;
+}
+
+.blue {
+  background-color: rgb(53, 32, 59);
+  color: white;
+  border: 2px solid black;
+}
+
+#sidebar{
+  width: 55px;
+  position: absolute;
+  left: 0px;
+  top: 0px;
+  bottom: 0px;
+  background-color:#181818;
+  box-shadow: inset 0px 0px 10px 0px #282828;
+  color: white;
+  z-index: 999;
+  padding-top: 60px;
+  padding-left: 8px;
+}
+
+#searchbox{
+  padding: 10px;
+}
+
+#info-text{
+  padding: 10px;
+}
+
+#selectHistoricalDrop {
+  background-color: hsl(120, 30%, 75%);
+  width: 95%;
+  padding: 10px;
+  margin-bottom:5px;
+
+}
+
+#selectHikingDrop {
+  background-color: hsl(120, 30%, 75%);
+  width: 95%;
+  padding: 10px;
+  margin-bottom:5px;
+
+}
+#selectMtnDrop {
+  background-color: hsl(120, 30%, 75%);
+  width: 95%;
+  padding: 10px;
+  margin-bottom:5px;
+
+}
+#selectSkiDrop {
+  background-color: hsl(120, 30%, 75%);
+  width: 95%;
+  padding: 10px;
+  margin-bottom: 5px;
+}
+#selectPoiDrop {
+  background-color: hsl(120, 30%, 75%);
+  width: 95%;
+  padding: 10px;
+  margin-bottom: 5px;
+}
+#lengthDrop {
+  background-color: hsl(120, 30%, 75%);
+  width: 95%;
+  padding: 10px;
+  margin-bottom: 5px;
+}
+#difficultyDrop {
+  background-color: hsl(120, 30%, 75%);
+  width: 95%;
+  padding: 10px;
+  margin-bottom: 5px;
+}
+#bikeLengthDrop {
+  background-color: hsl(120, 30%, 75%);
+  width: 95%;
+  padding: 10px;
+  margin-bottom: 5px;
+}
+#bikeDifficultyDrop {
+  background-color: hsl(120, 30%, 75%);
+  width: 95%;
+  padding: 10px;
+  margin-bottom: 5px;
+}
+#skiLengthDrop {
+  background-color: hsl(120, 30%, 75%);
+  width: 95%;
+  padding: 10px;
+  margin-bottom: 5px;
+}
+#skiDifficultyDrop {
+  background-color: hsl(120, 30%, 75%);
+  width: 95%;
+  padding: 10px;
+  margin-bottom: 5px;
+}
+#layer-toggle{
+  margin-bottom: 10px;
+}
+#toggle-text{
+  padding: 10px;
+}
+
+#legend{
+  /* background-color: hsl(120, 30%, 75%);
+  width: 80%;
+  padding: 15px;
+  margin: auto;
+  color: black;
+  height: 300px; */
+  border-radius: 10px;
+  text-align:left;
+}
+#rating{
+  background-color: hsl(120, 30%, 75%);
+  width: 50%;
+  padding: 10px;
+  margin: 10px;
+}
+#legend-text{
+  padding: 10px;
+}
+#review-text{
+  padding: 10px;
+}
+
+#thumbnails{
+  margin-bottom: 5px;
+  margin-right: 5px;
+  border: 1px solid black;
+}
+#comments{
+  height: 50px;
+}
+input[type=text]{
+  margin: 10px;
+  background-color: hsl(120, 30%, 75%);
+}
+input[type=date]{
+  margin: 10px;
+  background-color: hsl(120, 30%, 75%);
+}  
+#park-info{
+  border: 2px solid #ccc;
+  background-color: white;
+  border-radius: 5px;
+  width: 44px;
+  height: 44px;
+  padding: 5px;
+  color: #000000;
+  font-family: "Open Sans";
+  font-size: 16px;
+  margin-top: 10px;
+}
+#review{
+  border: 2px solid #ccc;
+  background-color: white;
+  border-radius: 5px;
+  width: 44px;
+  height: 44px;
+  padding: 5px;
+  color: #000000;
+  font-family: "Open Sans";
+  font-size: 16px;
+  margin-top: 10px;
+}
+#leg{
+  border: 2px solid #ccc;
+  background-color: white;
+  border-radius: 5px;
+  width: 44px;
+  height: 44px;
+  padding: 5px;
+  color: #000000;
+  font-family: "Open Sans";
+  font-size: 16px;
+  margin-top: 10px;
+}
+#toggle-button{
+  border: 2px solid #ccc;
+  background-color: white;
+  border-radius: 5px;
+  width: 44px;
+  height: 44px;
+  padding: 5px;
+  color: #000000;
+  font-family: "Open Sans";
+  font-size: 16px;
+  margin-top: 10px;
+}
+#search-button{
+  border: 2px solid #ccc;
+  background-color: white;
+  border-radius: 5px;
+  width: 44px;
+  height: 44px;
+  padding: 5px;
+  color: #000000;
+  font-family: "Open Sans";
+  font-size: 16px;
+  margin-top: 10px;
+}
+#filter-button{
+  border: 2px solid #ccc;
+  background-color: white;
+  border-radius: 5px;
+  width: 44px;
+  height: 44px;
+  padding: 5px;
+  color: #000000;
+  font-family: "Open Sans";
+  font-size: 16px;
+  margin-top: 10px;
+}
+#card{
+  border: 2px solid #ccc;
+  background-color: white;
+  border-radius: 5px;
+  padding: 5px;
+  color: #000000;
+  font-family: "Open Sans";
+  font-size: 16px;
+  width: 300px;
+  max-height:300px;
+  overflow-y: auto;
+}
+#info-collapse{
+  border: 2px solid #ccc;
+  background-color: white;
+  border-radius: 5px;
+  padding: 10px;
+  color: #000000;
+  font-family: "Open Sans";
+  font-size: 16px;
+  width: 250px;
+  max-height: 250px;
+  overflow-y: auto;
+}
+#search-collapse{
+  border: 2px solid #ccc;
+  background-color: white;
+  border-radius: 5px;
+  padding: 5px;
+  color: #000000;
+  font-family: "Open Sans";
+  font-size: 16px;
+  width: 275px;
+}
+#filter-collapse{
+  border: 2px solid #ccc;
+  background-color: white;
+  border-radius: 5px;
+  padding: 5px;
+  color: #000000;
+  font-family: "Open Sans";
+  font-size: 16px;
+  width: 275px;
+  max-height: 300px;
+  overflow-y: scroll;
+}
+#toggle-collapse {
+  border: 2px solid #ccc;
+  background-color: white;
+  border-radius: 5px;
+  padding: 10px;
+  color: #000000;
+  font-family: "Open Sans";
+  font-size: 16px;
+  width: 200px;
+  max-height: 300px; /* Adjust max-height as needed */
+  overflow-y: auto; /* Add scrollbar if content overflows */
+}
+#review-collapse{
+  border: 2px solid #ccc;
+  background-color: white;
+  border-radius: 5px;
+  padding: 5px;
+  color: #000000;
+  font-family: "Open Sans";
+  font-size: 16px;
+  width: 250px;
+  max-height: 300px;
+  overflow-y: scroll;
+}
+
+.button:hover {
+background-color: #aed3ae; /* Green */
+color: white;
+}
+
+.button {
+  background-color: #4CAF50; /* Green */
+  border: none;
+  color: white;
+  padding: 5px 10px;
+  text-align: center;
+  text-decoration: none;
+  display: inline-block;
+  font-size: 1em;
+  transition-duration: 0.4s;
+  margin: 5px;
+}
+
+
+ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
 }
