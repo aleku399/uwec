@@ -5,7 +5,7 @@ import { FaMapMarkerAlt } from "react-icons/fa";
 
 const PlacesAutocomplete = ({
   onAddressSelect,
-  handleClick,
+  // handleClick,
 }: {
   onAddressSelect?: (address: string) => void;
   handleClick?: () => void; 
@@ -47,25 +47,25 @@ const PlacesAutocomplete = ({
   }, [data, setValue, clearSuggestions, onAddressSelect]);
 
   return (
-    <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50 w-full max-w-md p-2 bg-white rounded shadow-md">
+    <div className="py-2">
       <div className="flex space-x-2">
         <input
           value={value}
           disabled={!ready}
           onChange={(e) => setValue(e.target.value)}
           placeholder="Enter location"
-          className="w-full p-2 border border-gray-300 rounded text-gray-700"
+          className="suggest-input w-full p-2 border border-gray-300 rounded text-gray-700"
         />
-        <button
+        {/* <button
           className="flex items-center space-x-1 px-4 py-2 bg-red-300 text-white font-semibold rounded-lg shadow-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-opacity-75"
           onClick={handleClick}
         >
           <FaMapMarkerAlt className="w-4 h-4" />
           <span>New</span>
-        </button>
+        </button> */}
       </div>
       {status === "OK" && (
-        <ul className="mt-2 max-h-40 overflow-y-auto border border-gray-300 rounded shadow-md text-gray-700">
+        <ul className="suggestion ">
           {renderSuggestions()}
         </ul>
       )}
