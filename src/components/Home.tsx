@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useEffect, useState, useCallback, useMemo, ChangeEvent, FormEvent } from 'react';
 
 import 'leaflet/dist/leaflet.css';
 import 'bootstrap/dist/css/bootstrap.min.css';
@@ -14,6 +14,53 @@ import {
   FaMapSigns, FaFlag, FaRunning, FaLayerGroup, FaInfoCircle,
   FaSearch, FaRegCommentDots, FaClipboardList
 } from 'react-icons/fa';
+import L from 'leaflet';
+import { getGeocode, getLatLng } from "use-places-autocomplete";
+import { useLoadScript } from "@react-google-maps/api";
+
+import PlacesAutocomplete from "@/components/PlacesAutoComplete";
+import { CurrentLocationControl, HomeControl } from "@/components/Controls";
+
+type Park = {
+  lat: number;
+  lng: number;
+};
+
+type AnimalMarker = {
+  type: string;
+  lat: number;
+  lng: number;
+};
+
+const parkLocations: { [key: string]: Park } = {
+  //  32.47718555566557, 0.054239605403718555
+  "Queen Elizabeth Exhibit": { lat: 0.05423960, lng: 32.477185 },
+  // 32.47579256765899, 0.05173127608642406 
+  "Kidepo": { lat: 0.05173127, lng: 32.47579256 },
+  // 32.47441022657418, 0.052482120975900895
+  "Farm": { lat: 0.0524821209, lng: 32.4744102 },
+  //  32.477805364307, 0.05284901808345724
+  "Lake Mburo": { lat: 0.052849018083, lng: 32.477805364307 }
+};
+
+const animalMarkers: { [key: string]: AnimalMarker[] } = {
+  "Queen Elizabeth Exhibit": [
+    { type: "Rhinos", lat: 0.05314444912552913, lng: 32.47608333935573 },
+    { type: "Crocodiles", lat: 0.05337280700452345, lng: 32.47626166112957 },
+    { type: "Zebras", lat: 0.05314444912552913, lng: 32.476067647535295 },
+    { type: "Elephants", lat:  0.05328088917464827, lng: 32.47626166112957 },
+    { type: "Lions", lat: 0.05314444912552913, lng: 32.47597920052584 }
+  ],
+  "Kidepo": [
+    { type: "Giraffes", lat:  0.052766302, lng: 32.475858803 },
+    { type: "Monkeys", lat:  0.0501354804, lng: 32.475636416 }
+  ],
+  "Lake Mburo": [
+    { type: "Rhinos", lat: 0.052149373053043874, lng: 32.476260462720745 },
+    { type: "Crocodiles", lat: 0.05208043515771394, lng: 32.476245246334315 }
+  ]
+};
+
 
 const geojsonData: FeatureCollection = {
     "type": "FeatureCollection",
@@ -1799,17 +1846,24 @@ const geojsonData: FeatureCollection = {
         }
       }
     ]
-  }
-  
+}
+
 const App = () => {
-  const [lat, setLat] = useState(0.0545493);
-  const [lng, setLng] = useState(32.4794036);
+  const [lat, setLat] = useState(0.049928);
+  const [lng, setLng] = useState(32.476534);
   const [showLegend, setShowLegend] = useState(false);
   const [showLayerToggle, setShowLayerToggle] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [showReview, setShowReview] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
   const [showAboutModal, setShowAboutModal] = useState(false);
+  const [animalMarkersState, setAnimalMarkersState] = useState<AnimalMarker[]>([]);
+
+  const [selectedFeature, setSelectedFeature] = useState<Feature<Geometry, GeoJsonProperties> | null>(null);
+
+  const [isMapClickMode, setIsMapClickMode] = useState(false);
+
+  const [activeSection, setActiveSection] = useState<string | null>(null);
 
   const [activeLayers, setActiveLayers] = 
   useState<string[]>([
@@ -1817,6 +1871,20 @@ const App = () => {
     "Beach", "Buildings", 
     "Queen Elizabeth Exhibit", 
     "Farm", "Kidepo", "Lake Mburo", "Lake Victoria", "Parking", "Play Area", "Tileset"]); 
+  const libraries = useMemo(() => ["places"], []);
+
+  const [formData, setFormData] = useState({
+    date: '',
+    comments: '',
+    rating: '',
+    issues: '',
+    location: '',
+  });
+
+  const { isLoaded } = useLoadScript({
+    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY as string,
+    libraries: libraries as any,
+  });
 
   const toggleModal = () => {
     setShowAboutModal(!showAboutModal);
@@ -1826,8 +1894,22 @@ const App = () => {
     if (feature.properties && feature.properties.name) {
       layer.bindPopup(`<b>${feature.properties.name}</b>`);
     }
-  };
 
+    layer.on('click', (event: L.LeafletMouseEvent) => {
+      if (true) {
+    
+        event.originalEvent.stopPropagation(); 
+        const { latlng } = event;
+        setLat(latlng.lat);
+        setLng(latlng.lng);
+        setFormData(prev => ({ ...prev, location: `${latlng.lat}, ${latlng.lng}` }));
+        setIsMapClickMode(false); // Optionally disable map click mode after setting the location
+      } else {
+        // Feature-specific logic if isMapClickMode is not enabled
+      }
+    });
+  };
+  
   const handleLayerToggle = (layer: string) => {
     setActiveLayers((prevLayers) =>
       prevLayers.includes(layer)
@@ -1835,6 +1917,121 @@ const App = () => {
         : [...prevLayers, layer]
     );
   };
+
+  const handleSelectionChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+    const selected = event.target.value as keyof typeof parkLocations;
+
+    if (parkLocations[selected]) {
+      const { lat, lng } = parkLocations[selected];
+      const feature = geojsonData.features.find((f: Feature) => f.properties?.name === selected);
+      if (feature) {
+        setSelectedFeature(feature);
+      }
+      setLat(lat);
+      setLng(lng);
+      setAnimalMarkersState(animalMarkers[selected] || []);
+    }
+  };
+
+  const handleChange = (e: React.SyntheticEvent<any>) => {
+    const target = e.target as (HTMLInputElement | HTMLSelectElement);
+    setFormData({ ...formData, [target.name]: target.value });
+  };
+
+  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    // Handle form submission logic here
+    console.log(formData);   
+ // For example, you can send this data to a server
+  };
+  
+  const MapUpdater = () => {
+    const map = useMap();
+
+    useEffect(() => {
+      if (map) {
+        // Add your custom controls
+        const currentLocationControl = new CurrentLocationControl({ position: 'topleft' });
+        const homeControl = new HomeControl({ position: 'topleft' });
+  
+        map.addControl(currentLocationControl);
+        map.addControl(homeControl);
+  
+        return () => {
+          map.removeControl(currentLocationControl);
+          map.removeControl(homeControl);
+        };
+      }
+    }, [map]);
+
+    useEffect(() => {
+      if (map && selectedFeature) {
+        const bounds = L.geoJSON(selectedFeature).getBounds();
+        map.fitBounds(bounds);
+      }
+    }, [selectedFeature, map]);
+
+    useEffect(() => {
+      map.setView([lat, lng], map.getZoom());
+    }, [lat, lng, map]);
+
+    useEffect(() => {
+      const handleClick = (event: L.LeafletMouseEvent) => {
+        if (isMapClickMode) {
+          const { latlng } = event;
+          setLat(latlng.lat);
+          setLng(latlng.lng);
+          setFormData(prev => ({ ...prev, location: `${latlng.lat}, ${latlng.lng}` }));
+          setIsMapClickMode(false);
+        }
+      };
+
+      map.on('click', handleClick);
+      return () => {
+        map.off('click', handleClick);
+      };
+    }, [isMapClickMode, map]);
+
+    return null;
+  };
+
+  const handleAddressSelect = useCallback((address: string) => {
+    getGeocode({ address }).then((results) => {
+      const { lat, lng } = getLatLng(results[0]);
+      setLat(lat);
+      setLng(lng);
+    });
+  }, []);
+
+
+  const handleGetLocation = () => {
+    alert('Getting current location');
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          setLat(latitude);
+          setLng(longitude);
+          setFormData(prev => ({ ...prev, location: `${latitude}, ${longitude}` }));
+        },
+        () => {
+          alert('Unable to retrieve your location.');
+        }
+      );
+    } else {
+      alert('Geolocation is not supported by this browser.');
+    }
+  };
+
+  const enableMapClickMode = () => {
+    alert("Click a location on the map");
+    setIsMapClickMode(true);
+  };
+
+  const handleSectionToggle = (section: string) => {
+    setActiveSection(activeSection === section ? null : section);
+  };
+  
 
   const style = (feature: Feature<Geometry, GeoJsonProperties> | undefined) => {
     if (feature?.properties) {
@@ -1884,6 +2081,12 @@ const App = () => {
     { name: 'Tileset', icon: <FaLayerGroup className='mx-1' />, id: 'tileset' },
   ];
 
+  
+
+  if (!isLoaded) {
+    return <p>Loading...</p>;
+  }
+  console.log("isMapClickModeRender", isMapClickMode);
   return (
     <div>
        {/* Navbar */}
@@ -1934,33 +2137,56 @@ const App = () => {
       )}
 
       {/* Map */}
-      <MapContainer center={[lat, lng]} zoom={16} style={{ height: '100vh', width: '100%' }}>
-        <TileLayer
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-        />
-         {activeLayers.map(layer => (
-            <GeoJSON
-              key={layer}
-              data={{
-                ...geojsonData,
-                features: geojsonData.features.filter((feature: Feature<Geometry, GeoJsonProperties>) =>
-                  feature?.properties?.name === layer
-                )
-              } as GeoJsonObject}
-              onEachFeature={onEachFeature}
-              style={style as any}
-            />
-          ))}
-      </MapContainer>
+      <div  id="map">
+        <MapContainer 
+          center={[lat, lng]} 
+          zoom={16} 
+          style={{ height: '100vh', width: '100%' }}
+      
+        >
+          <TileLayer
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+          />
+    
+          {activeLayers.map(layer => (
+              <GeoJSON
+                key={layer}
+                data={{
+                  ...geojsonData,
+                  features: geojsonData.features.filter((feature: Feature<Geometry, GeoJsonProperties>) =>
+                    feature?.properties?.name === layer
+                  )
+                } as GeoJsonObject}
+                onEachFeature={onEachFeature}
+                style={style as any}
+              />
+            ))}
+            {animalMarkersState.map((marker, index) => (
+              <Marker key={index} position={[marker.lat, marker.lng]}>
+                <Popup>{marker.type}</Popup>
+              </Marker>
+            ))}
+            <MapUpdater />
+        </MapContainer>
+      </div>
+     
 
       {/* Sidebar */}
       <div id="sidebar">
         {/* Park info */}
-        <button id="park-info" type="button" className="btn btn-primary" onClick={() => setShowInfo(!showInfo)}>
+        <button
+          id="park-info"
+          type="button"
+          className="btn btn-primary"
+          onClick={() => handleSectionToggle('info')}
+        >
           <FaInfoCircle />
         </button>
-        <div className={`collapse ${showInfo ? 'show' : ''}`} id="info-collapse">
+        <div
+          className={`collapse ${activeSection === 'info' ? 'show' : ''}`}
+          id="info-collapse"
+        >
           <div>
             <h4 className='text-red-100'>About the Uganda Wildlife Education Center</h4>
             <p>The Uganda Wildlife Education Center (UWEC) is a premier wildlife education facility located in Entebbe, Uganda. The center is dedicated to the conservation and education of Uganda’s wildlife and aims to provide visitors with an understanding of the country’s diverse fauna. UWEC features a variety of wildlife exhibits, including African lions, giraffes, and hippos, as well as educational programs about conservation efforts.</p>
@@ -1970,75 +2196,188 @@ const App = () => {
 
 
         {/* Legend */}
-        <button id="leg" type="button" className="btn btn-primary" onClick={() => setShowLegend(!showLegend)}>
-            <FaClipboardList />
+        <button
+          id="leg"
+          type="button"
+          className="btn btn-primary"
+          onClick={() => handleSectionToggle('legend')}
+        >
+          <FaClipboardList />
         </button>
-        <div className={`collapse ${showLegend ? 'show' : ''}`} id="legend">
-            <div id="card">
-                <h4>Legend:</h4>
-                <div id="legend">
-                    <div id="thmb">
-                        <img id="thumbnails" height="35px" width="35px" src="img/boundary.PNG" alt="Park Boundary"/> Park Boundary<br />
-                        <img id="thumbnails" height="35px" width="35px" src="img/review.PNG" alt="Reviews"/> Reviews<br />
-                        <img id="thumbnails" height="35px" width="35px" src="img/historical.PNG" alt="Historical Places"/>Queen Elizabeth<br />
-                        <img id="thumbnails" height="35px" width="35px" src="img/poi.PNG" alt="Points of Interest"/>Lakes<br />
-            
-                    </div>
-                </div>
+        <div
+          className={`collapse ${activeSection === 'legend' ? 'show' : ''}`}
+          id="legend"
+        >
+          <div id="card">
+            <h4>Legend:</h4>
+            <div id="legend">
+              <div id="thmb">
+                <img id="thumbnails" height="35px" width="35px" src="img/boundary.PNG" alt="Park Boundary"/> Park Boundary<br />
+                <img id="thumbnails" height="35px" width="35px" src="img/review.PNG" alt="Reviews"/> Reviews<br />
+                <img id="thumbnails" height="35px" width="35px" src="img/historical.PNG" alt="Historical Places"/>Queen Elizabeth<br />
+                <img id="thumbnails" height="35px" width="35px" src="img/poi.PNG" alt="Points of Interest"/>Lakes<br />
+              </div>
             </div>
+          </div>
         </div>
 
         {/* Layer Toggle */}
-        <button id="toggle-button" type="button" className="btn btn-primary" onClick={() => setShowLayerToggle(!showLayerToggle)}>
-          <FaLayerGroup />
-        </button>
-        <div className={`collapse ${showLayerToggle ? 'show' : ''}`} id="toggle-collapse">
-          <h5>Layers</h5>
-          <ul className="  ">
-            {layers.map((layer) => (
-              <li key={layer.name} className="my-2">
-                <label className="flex items-center">
-                  <input
-                    type="checkbox"
-                    checked={activeLayers.includes(layer.name)}
-                    onChange={() => handleLayerToggle(layer.name)}
-                    className="mr-2"
-                  />
-                  <span className="flex items-center">
-                    {layer.icon} {layer.name}
-                  </span>
-                </label>
-              </li>
-            ))}
-          </ul>
-        </div>
+        <button
+        id="toggle-button"
+        type="button"
+        className="btn btn-primary"
+        onClick={() => handleSectionToggle('layer-toggle')}
+      >
+        <FaLayerGroup />
+      </button>
+      <div
+        className={`collapse ${activeSection === 'layer-toggle' ? 'show' : ''}`}
+        id="toggle-collapse"
+      >
+        <h5>Layers</h5>
+        <ul>
+          {layers.map((layer) => (
+            <li key={layer.name} className="my-2">
+              <label className="flex items-center">
+                <input
+                  type="checkbox"
+                  checked={activeLayers.includes(layer.name)}
+                  onChange={() => handleLayerToggle(layer.name)}
+                  className="mr-2"
+                />
+                <span className="flex items-center">
+                  {layer.icon} {layer.name}
+                </span>
+              </label>
+            </li>
+          ))}
+        </ul>
+      </div>
 
         {/* Search */}
-        <button id="search-button" type="button" className="btn btn-primary" onClick={() => setShowSearch(!showSearch)}>
+        <button
+          id="search-button"
+          type="button"
+          className="btn btn-primary"
+          onClick={() => handleSectionToggle('search')}
+        >
           <FaSearch />
         </button>
-        <div className={`collapse ${showSearch ? 'show' : ''}`} id="search-collapse">
+        <div
+          className={`collapse ${activeSection === 'search' ? 'show' : ''}`}
+          id="search-collapse"
+        >
           <h5>Search</h5>
-          <input type="text" placeholder="Search..." />
+          <select onChange={handleSelectionChange} className="form-select">
+            <option value="">Select a park or feature...</option>
+            {Object.keys(parkLocations).map((option) => (
+              <option key={option} value={option}>{option}</option>
+            ))}
+          </select>
+          <PlacesAutocomplete onAddressSelect={handleAddressSelect}  />
         </div>
 
         {/* Submit a Review */}
-        <button id="review" type="button" className="btn btn-primary" onClick={() => setShowReview(!showReview)}>
+        <button 
+          id="review" 
+          type="button" 
+          className="btn btn-primary" 
+          onClick={() =>  { 
+            handleSectionToggle('review')
+            setFormData({...formData, location: ""})
+          }}
+        >
           <FaRegCommentDots />
         </button>
-        <div className={`collapse ${showReview ? 'show' : ''}`} id="review-collapse">
-          <h5>Submit a Review</h5>
-          <form>
-            <div>
-              <label htmlFor="review-title">Title:</label>
-              <input type="text" id="review-title" />
+        <div 
+          className={`collapse ${activeSection === 'review' ? 'show' : ''}`}
+          id="review-collapse"
+        >
+        <form onSubmit={handleSubmit} className="p-3 ">
+          <h4 className="mb-3">Submit a Review:</h4>
+          <p>(*Required fields)</p>
+          
+          <div className="form-group mb-3">
+            <label htmlFor="date"><strong>Date of Visit*:</strong></label>
+            <input 
+              type="date" 
+              id="date" 
+              name="date" 
+              className="form-control" 
+              value={formData.date} 
+              onChange={handleChange} 
+              required 
+            />
+          </div>
+          
+          <div className="form-group mb-3">
+            <label htmlFor="comments"><strong>Comments*:</strong></label>
+            <input 
+              type="text" 
+              id="comments" 
+              name="comments" 
+              className="form-control" 
+              value={formData.comments} 
+              onChange={handleChange} 
+              required 
+            />
+          </div>
+          
+          <div className="form-group mb-3">
+            <label htmlFor="rating"><strong>Rate your experience*:</strong><br />(1 = worst, 5 = best)</label>
+            <select 
+              id="rating" 
+              name="rating" 
+              className="form-control" 
+              value={formData.rating} 
+              onChange={handleChange} 
+              required
+            >
+              <option value="">Rating</option>
+              <option value="1">1</option>
+              <option value="2">2</option>
+              <option value="3">3</option>
+              <option value="4">4</option>
+              <option value="5">5</option>
+            </select>
+          </div>
+          
+          <div className="form-group mb-3">
+            <label htmlFor="issues"><strong>Report an issue:</strong></label>
+            <input 
+              type="text" 
+              id="issues" 
+              name="issues" 
+              className="form-control" 
+              value={formData.issues} 
+              onChange={handleChange} 
+            />
+          </div>
+          
+          <div className="form-group mb-3">
+            <label htmlFor="location"><strong>Location*:</strong><br />(Enter a lat/lon coordinate)</label>
+            <div className="d-flex flex-column">
+              <button type="button" className="btn btn-primary mb-2" onClick={handleGetLocation}>
+                Use Location
+              </button>
+              <button type="button" className="btn btn-secondary" onClick={enableMapClickMode}>
+                Use Map
+              </button>
             </div>
-            <div>
-              <label htmlFor="review-text">Review:</label>
-              <textarea id="review-text" rows={4}></textarea>
-            </div>
-            <button type="submit" className="btn btn-primary">Submit</button>
-          </form>
+            <input 
+              type="text" 
+              id="location" 
+              name="location" 
+              className="form-control mt-2" 
+              value={formData.location} 
+              onChange={handleChange} 
+              required 
+            />
+          </div>
+          
+          <input type="submit" value="Submit" className="btn btn-success mt-1" />
+        </form>
+
         </div>
       </div>
     </div>
