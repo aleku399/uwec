@@ -41,6 +41,9 @@ body {
 .leaflet-right .leaflet-routing-container.leaflet-routing-container-hide {
   display: none;
 } */
+.container {
+  /* overflow: hidden; */
+}
 
 #map{
   position: absolute;
@@ -50,6 +53,7 @@ body {
   bottom: 0px;
   border: lightgray;
   z-index: -1;
+  overflow: hidden;
 }
 
 h4{
@@ -74,6 +78,7 @@ h4{
   z-index: 999;
   padding-top: 60px;
   padding-left: 8px;
+  /* overflow: hidden; */
 }
 
 #searchbox{
@@ -395,4 +400,9 @@ ul {
   border: none;
   font-size: 14px;
   padding: 3px;
+}
+
+.modal-content {
+  background-color: transparent !important;
+  border: none !important;
 }

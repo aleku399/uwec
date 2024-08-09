@@ -1,5 +1,5 @@
 import axios, { AxiosRequestConfig, AxiosHeaders } from "axios";
-import { UserData, Credentials, Location } from "@/types";
+import { UserData, Credentials, Location, Review } from "@/types";
 
 const instance = axios.create({
   baseURL: "http://localhost:3001/api/",
@@ -47,6 +47,26 @@ export const fetchLocations = async (): Promise<Location[]> => {
     return response.data;
   } catch (error) {
     console.error('Error in fetchLocations:', error);
+    throw error;
+  }
+};
+
+export const fetchReviews = async (): Promise<any> => {
+  try {
+    const response = await instance.get('/reviews');
+    return response.data;
+  } catch (error) {
+    console.error('Error in fetchReviews:', error);
+    throw error;
+  }
+};
+
+export const createReview = async (reviewData: Review) => {
+  try {
+    const response = await instance.post('/reviews', reviewData);
+    return response.data;
+  } catch (error) {
+    console.error('Error in createReview:', error);
     throw error;
   }
 };
