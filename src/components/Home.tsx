@@ -20,6 +20,9 @@ import { useLoadScript } from "@react-google-maps/api";
 
 import PlacesAutocomplete from "@/components/PlacesAutoComplete";
 import { CurrentLocationControl, HomeControl } from "@/components/Controls";
+import Loader from "@/components/Loader";
+import { createReview, fetchReviews} from "@/api";
+import { Review } from '@/types';
 
 type Park = {
   lat: number;
@@ -30,6 +33,7 @@ type AnimalMarker = {
   type: string;
   lat: number;
   lng: number;
+  img: string;
 };
 
 const parkLocations: { [key: string]: Park } = {
@@ -45,19 +49,29 @@ const parkLocations: { [key: string]: Park } = {
 
 const animalMarkers: { [key: string]: AnimalMarker[] } = {
   "Queen Elizabeth Exhibit": [
-    { type: "Rhinos", lat: 0.05314444912552913, lng: 32.47608333935573 },
-    { type: "Crocodiles", lat: 0.05337280700452345, lng: 32.47626166112957 },
-    { type: "Zebras", lat: 0.05314444912552913, lng: 32.476067647535295 },
-    { type: "Elephants", lat:  0.05328088917464827, lng: 32.47626166112957 },
-    { type: "Lions", lat: 0.05314444912552913, lng: 32.47597920052584 }
+    // 0.054230,32.475528
+    { type: "Rhinos", lat: 0.054230, lng: 32.475528, img: "/Rhino.png" },
+    // 0.052706,32.476667
+    { type: "Crocodiles", lat:  0.052706, lng: 32.476667, img: "/crocodile.png" },
+     // 0.054363,32.477856
+    { type: "Zebras", lat: 0.054363, lng: 32.477856, img: "/zebra.png" },
+    // 0.054126,32.477681
+    { type: "Elephants", lat:  0.054126, lng: 32.477681, img: "/Elephant.png" },
+    { type: "Lions", lat: 0.05314444912552913, lng: 32.47597920052584, img: "/Lion.png" }
   ],
   "Kidepo": [
-    { type: "Giraffes", lat:  0.052766302, lng: 32.475858803 },
-    { type: "Monkeys", lat:  0.0501354804, lng: 32.475636416 }
+    // 0.051900,32.474714
+    { type: "Giraffes", lat: 0.051900, lng: 32.474714, img: "/Giraffe.png" },
+    // 0.051085,32.476368
+    { type: "Monkeys", lat:  0.051085, lng: 32.476368, img: "/monkey.png" }
   ],
   "Lake Mburo": [
-    { type: "Rhinos", lat: 0.052149373053043874, lng: 32.476260462720745 },
-    { type: "Crocodiles", lat: 0.05208043515771394, lng: 32.476245246334315 }
+    // 0.052108,32.476682
+    { type: "Snakes", lat: 0.052108, lng: 32.476682, img: "/snake.png" },
+    // 0.052458,32.477379
+    { type: "Zebra", lat: 0.052458, lng: 32.477379, img: "/zebra.png" },
+    // 0.052389,32.477588
+    { type: "Crocodiles", lat:  0.052706, lng: 32.476667, img: "/crocodile.png" },
   ]
 };
 
@@ -1870,7 +1884,15 @@ const App = () => {
     "Forest", 
     "Beach", "Buildings", 
     "Queen Elizabeth Exhibit", 
-    "Farm", "Kidepo", "Lake Mburo", "Lake Victoria", "Parking", "Play Area", "Tileset"]); 
+    "Farm", "Kidepo", "Lake Mburo", 
+    "Lake Victoria", "Parking", "Play Area", "Tileset", "Reviews"]); 
+  const [previousLayers, setPreviousLayers] = useState<string[]>([]);
+  
+  const [showImageLayer, setShowImageLayer] = useState(false);
+  const [showCameraMarkers, setShowCameraMarkers] = useState(true);
+
+  const [isLoading, setIsLoading] = useState(false);
+
   const libraries = useMemo(() => ["places"], []);
 
   const [formData, setFormData] = useState({
@@ -1880,7 +1902,7 @@ const App = () => {
     issues: '',
     location: '',
   });
-
+  const [reviews, setReviews] = useState<Review[]>([]);
   const { isLoaded } = useLoadScript({
     googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY as string,
     libraries: libraries as any,
@@ -1938,12 +1960,44 @@ const App = () => {
     setFormData({ ...formData, [target.name]: target.value });
   };
 
-  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    // Handle form submission logic here
-    console.log(formData);   
- // For example, you can send this data to a server
+    setIsLoading(true); // Show loader
+
+    try {
+      const res = await createReview(formData);
+      const {status, payload} = res;
+      if (status) {
+        setReviews([...reviews, {...payload, img: "/img/review.PNG"}]);
+      }
+      setFormData({ date: '', comments: '', rating: '', issues: '', location: '' });
+    } catch (error) {
+      console.error('Error creating review:', error);
+    } finally {
+      setIsLoading(false);
+    }
   };
+
+  useEffect(() => {
+    const getReviews = async () => {
+      setIsLoading(true); 
+      try {
+        const res = await fetchReviews();
+        console.log("res", res);
+        const {status, payload} = res;
+        if (status) {
+          const reviewsWithCameraIcon = payload.map((r: Review) => ({...r, img: "/img/review.PNG"})); 
+          setReviews(reviewsWithCameraIcon);
+        }
+      } catch (error) {
+        console.error('Error fetching reviews:', error);
+      } finally {
+        setIsLoading(false); 
+      }
+    };
+
+    getReviews();
+  }, []);
   
   const MapUpdater = () => {
     const map = useMap();
@@ -2032,6 +2086,28 @@ const App = () => {
     setActiveSection(activeSection === section ? null : section);
   };
   
+  const createCustomIcon = (imgUrl: string | undefined) => {
+    if (imgUrl) {
+      return L.icon({
+        iconUrl: imgUrl,
+        iconSize: [30, 30], // Adjust the size as needed
+        iconAnchor: [10, 10], // Anchor the icon at the center-bottom
+        popupAnchor: [0, -40] // Adjust popup position
+      });
+    }
+  };
+
+  const handleCheckboxChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const { checked } = e.target;
+    setShowImageLayer(checked);
+
+    if (checked) {
+      setPreviousLayers(activeLayers); // Save the current layers before unchecking them
+      setActiveLayers(["imageLayer"]); // Only show the image layer
+    } else {
+      setActiveLayers(previousLayers); // Restore the previously active layers
+    }
+  };
 
   const style = (feature: Feature<Geometry, GeoJsonProperties> | undefined) => {
     if (feature?.properties) {
@@ -2049,7 +2125,7 @@ const App = () => {
         case "Kidepo":
             return { color: 'hsl(164, 69%, 30%)', fillColor: 'hsl(164, 69%, 30%)', fillOpacity: 0.5 };
         case "Lake Mburo":
-            return { color: 'hsl(196, 74%, 66%)', fillColor: 'hsl(196, 74%, 66%)', fillOpacity: 0.5 };
+            return { color: 'pink', fillColor: 'pink', fillOpacity: 0.5 };
         case "Lake Victoria":
             return { color: 'hsl(196, 74%, 66%)', fillColor: 'hsl(196, 74%, 66%)', fillOpacity: 1 };
         case "Parking":
@@ -2084,13 +2160,16 @@ const App = () => {
   
 
   if (!isLoaded) {
-    return <p>Loading...</p>;
+    return <Loader />;
   }
-  console.log("isMapClickModeRender", isMapClickMode);
+
   return (
-    <div>
-       {/* Navbar */}
-       <nav id="navbar" className="navbar navbar-expand-md navbar-dark blue fixed-top justify-content-between">
+    <div className='container'>
+      {/* Loader */}
+      {isLoading && <Loader />}
+
+      {/* Navbar */}
+      <nav id="navbar" className="navbar navbar-expand-md navbar-dark blue fixed-top justify-content-between">
             <div className="container flex">
                 <a className="navbar-brand" href="https://uwec.ug/" target="_blank" rel="noopener noreferrer">
                     <FaTree /> UWEC
@@ -2107,7 +2186,7 @@ const App = () => {
                     </ul>
                 </div>
             </div>
-        </nav>
+      </nav>
 
       {/* About Modal */}
       {showAboutModal && (
@@ -2144,10 +2223,17 @@ const App = () => {
           style={{ height: '100vh', width: '100%' }}
       
         >
+          {/* url="https://api.mapbox.com/styles/v1/aleku399/clzl2g938002j01r0erdd0l3r/tiles/256/{z}/{x}/{y}@2x?access_token=pk.eyJ1IjoiYWxla3UzOTkiLCJhIjoiY2praDBkbXpzMDlxNjNrcDBqNGUwc3kzeSJ9.Jfwtzm5tQfXFiWBjIQUvUA */}
           <TileLayer
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            url="https://api.mapbox.com/styles/v1/aleku399/clzl2g938002j01r0erdd0l3r/tiles/256/{z}/{x}/{y}@2x?access_token=pk.eyJ1IjoiYWxla3UzOTkiLCJhIjoiY2praDBkbXpzMDlxNjNrcDBqNGUwc3kzeSJ9.Jfwtzm5tQfXFiWBjIQUvUA"
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           />
+          {showImageLayer && (
+            <ImageOverlay
+              url="/Map1.png"
+              bounds={[[0.055789, 32.472825], [0.049798, 32.480078]]}
+            />
+          )}
     
           {activeLayers.map(layer => (
               <GeoJSON
@@ -2162,11 +2248,26 @@ const App = () => {
                 style={style as any}
               />
             ))}
-            {animalMarkersState.map((marker, index) => (
-              <Marker key={index} position={[marker.lat, marker.lng]}>
-                <Popup>{marker.type}</Popup>
-              </Marker>
-            ))}
+              {animalMarkersState.map((marker, index) => (
+                <Marker key={index} position={[marker.lat, marker.lng]} icon={createCustomIcon(marker.img)}>
+                  <Popup>{marker.type}</Popup>
+                </Marker>
+              ))}
+               {showCameraMarkers &&  reviews.map((review, index) => (
+                  <Marker
+                    key={index}
+                    position={[parseFloat(review.location.split(',')[0]), parseFloat(review.location.split(',')[1])]}
+                    icon={createCustomIcon(review.img)}
+                  >
+                    <Popup>
+                      <div>
+                        <strong>Comments:</strong> {review.comments}<br />
+                        <strong>Rating:</strong> {review.rating}<br />
+                        <strong>Date:</strong> {review.date}
+                      </div>
+                    </Popup>
+                  </Marker>
+                ))}
             <MapUpdater />
         </MapContainer>
       </div>
@@ -2251,6 +2352,27 @@ const App = () => {
               </label>
             </li>
           ))}
+           <li className="my-2">
+              <label className="flex items-center">
+                <input
+                  type="checkbox"
+                  checked={showCameraMarkers}
+                  onChange={() => setShowCameraMarkers(!showCameraMarkers)}
+                />
+                <span className="flex items-center">
+                <FaRegCommentDots /> {"Reviews"}
+                </span>
+              </label>
+            </li>
+         
+           <div>
+              <input
+                type="checkbox"
+                checked={showImageLayer}
+                onChange={handleCheckboxChange}
+              />
+              Show Image Layer
+            </div>
         </ul>
       </div>
 

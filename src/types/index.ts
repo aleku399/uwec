@@ -19,3 +19,11 @@ export interface Credentials {
     icon?: string;
   }
   
+  export interface Review {
+    date: string,
+    comments: string,
+    rating: string,
+    issues: string,
+    location: string,
+    img?: string;
+  }
