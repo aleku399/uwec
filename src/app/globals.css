@@ -402,7 +402,7 @@ ul {
   padding: 3px;
 }
 
-.modal-content {
-  background-color: transparent !important;
-  border: none !important;
+.paw {
+  margin-right: 10px;
+  margin-bottom: 5px;
 }

@@ -12,7 +12,7 @@ import { Feature, FeatureCollection, GeoJsonObject, Polygon, Geometry, GeoJsonPr
 import {
   FaParking, FaTree, FaWater, FaBuilding, FaPaw, FaTractor,
   FaMapSigns, FaFlag, FaRunning, FaLayerGroup, FaInfoCircle,
-  FaSearch, FaRegCommentDots, FaClipboardList
+  FaSearch, FaRegCommentDots, FaClipboardList, FaMapPin
 } from 'react-icons/fa';
 import L from 'leaflet';
 import { getGeocode, getLatLng } from "use-places-autocomplete";
@@ -37,41 +37,31 @@ type AnimalMarker = {
 };
 
 const parkLocations: { [key: string]: Park } = {
-  //  32.47718555566557, 0.054239605403718555
   "Queen Elizabeth Exhibit": { lat: 0.05423960, lng: 32.477185 },
-  // 32.47579256765899, 0.05173127608642406 
   "Kidepo": { lat: 0.05173127, lng: 32.47579256 },
-  // 32.47441022657418, 0.052482120975900895
   "Farm": { lat: 0.0524821209, lng: 32.4744102 },
-  //  32.477805364307, 0.05284901808345724
   "Lake Mburo": { lat: 0.052849018083, lng: 32.477805364307 }
 };
 
 const animalMarkers: { [key: string]: AnimalMarker[] } = {
   "Queen Elizabeth Exhibit": [
-    // 0.054230,32.475528
     { type: "Rhinos", lat: 0.054230, lng: 32.475528, img: "/Rhino.png" },
-    // 0.052706,32.476667
     { type: "Crocodiles", lat:  0.052706, lng: 32.476667, img: "/crocodile.png" },
-     // 0.054363,32.477856
     { type: "Zebras", lat: 0.054363, lng: 32.477856, img: "/zebra.png" },
-    // 0.054126,32.477681
     { type: "Elephants", lat:  0.054126, lng: 32.477681, img: "/Elephant.png" },
     { type: "Lions", lat: 0.05314444912552913, lng: 32.47597920052584, img: "/Lion.png" }
   ],
   "Kidepo": [
-    // 0.051900,32.474714
     { type: "Giraffes", lat: 0.051900, lng: 32.474714, img: "/Giraffe.png" },
-    // 0.051085,32.476368
-    { type: "Monkeys", lat:  0.051085, lng: 32.476368, img: "/monkey.png" }
+    { type: "Monkeys", lat:  0.051085, lng: 32.476368, img: "/monkey.png" },
+    { type: "Baboon", lat:  0.051268, lng: 32.476234, img: "/baboon.png" }
   ],
   "Lake Mburo": [
-    // 0.052108,32.476682
     { type: "Snakes", lat: 0.052108, lng: 32.476682, img: "/snake.png" },
-    // 0.052458,32.477379
     { type: "Zebra", lat: 0.052458, lng: 32.477379, img: "/zebra.png" },
-    // 0.052389,32.477588
     { type: "Crocodiles", lat:  0.052706, lng: 32.476667, img: "/crocodile.png" },
+    { type: "Leopard", lat: 0.052720, lng: 32.477658, img: "/leopard.jpeg" },
+    { type: "Hyena", lat: 0.052690, lng: 32.477372, img: "/hyena.jpeg" },
   ]
 };
 
@@ -1862,6 +1852,11 @@ const geojsonData: FeatureCollection = {
     ]
 }
 
+const isValidLatLng = (location: string): boolean => {
+  const latLngRegex = /^[-+]?([1-8]?\d(\.\d+)?|90(\.0+)?),\s*[-+]?(180(\.0+)?|((1[0-7]\d)|([1-9]?\d))(\.\d+)?)$/;
+  return latLngRegex.test(location);
+};
+
 const App = () => {
   const [lat, setLat] = useState(0.049928);
   const [lng, setLng] = useState(32.476534);
@@ -1903,6 +1898,8 @@ const App = () => {
     location: '',
   });
   const [reviews, setReviews] = useState<Review[]>([]);
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const { isLoaded } = useLoadScript({
     googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY as string,
     libraries: libraries as any,
@@ -1925,7 +1922,7 @@ const App = () => {
         setLat(latlng.lat);
         setLng(latlng.lng);
         setFormData(prev => ({ ...prev, location: `${latlng.lat}, ${latlng.lng}` }));
-        setIsMapClickMode(false); // Optionally disable map click mode after setting the location
+        setIsMapClickMode(false); 
       } else {
         // Feature-specific logic if isMapClickMode is not enabled
       }
@@ -1960,9 +1957,43 @@ const App = () => {
     setFormData({ ...formData, [target.name]: target.value });
   };
 
+  const validateForm = () => {
+    const newErrors: { [key: string]: string } = {};
+
+    if (!formData.date) {
+      newErrors.date = 'Date is required.';
+    }
+    if (!formData.comments) {
+      newErrors.comments = 'Comments are required.';
+    } else if (formData.comments.length < 5) {
+      newErrors.comments = 'Comments must be at least 5 characters long.';
+    }
+    if (!formData.rating) {
+      newErrors.rating = 'Rating is required.';
+    } else if (!/^[1-5]$/.test(formData.rating)) {
+      newErrors.rating = 'Rating must be between 1 and 5.';
+    }
+    if (!formData.issues) {
+      newErrors.issues = 'Please describe any issues encountered.';
+    }
+    if (!formData.location) {
+      newErrors.location = 'Location is required.';
+    } else if (!/^[-+]?([1-8]?\d(\.\d+)?|90(\.0+)?),\s*[-+]?(180(\.0+)?|((1[0-7]\d)|([1-9]?\d))(\.\d+)?)$/.test(formData.location)) {
+      newErrors.location = 'Location must be in "latitude, longitude" format.';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setIsLoading(true); // Show loader
+
+    if (!validateForm()) {
+      return; 
+    }
+
+    setIsLoading(true);
 
     try {
       const res = await createReview(formData);
@@ -1986,7 +2017,8 @@ const App = () => {
         console.log("res", res);
         const {status, payload} = res;
         if (status) {
-          const reviewsWithCameraIcon = payload.map((r: Review) => ({...r, img: "/img/review.PNG"})); 
+          const filteredReviews = payload.filter((r: Review) => isValidLatLng(r.location));
+          const reviewsWithCameraIcon = filteredReviews.map((r: Review) => ({...r, img: "/img/review.PNG"})); 
           setReviews(reviewsWithCameraIcon);
         }
       } catch (error) {
@@ -2010,10 +2042,17 @@ const App = () => {
   
         map.addControl(currentLocationControl);
         map.addControl(homeControl);
+
+        map.on('homecontrol:reset', () => {
+          setSelectedFeature(null);
+          setActiveSection(null);
+          setAnimalMarkersState([]);
+        });
   
         return () => {
           map.removeControl(currentLocationControl);
           map.removeControl(homeControl);
+          map.off('homecontrol:reset');
         };
       }
     }, [map]);
@@ -2066,6 +2105,7 @@ const App = () => {
           const { latitude, longitude } = position.coords;
           setLat(latitude);
           setLng(longitude);
+          setUserLocation({ lat: latitude, lng: longitude });
           setFormData(prev => ({ ...prev, location: `${latitude}, ${longitude}` }));
         },
         () => {
@@ -2090,9 +2130,9 @@ const App = () => {
     if (imgUrl) {
       return L.icon({
         iconUrl: imgUrl,
-        iconSize: [30, 30], // Adjust the size as needed
-        iconAnchor: [10, 10], // Anchor the icon at the center-bottom
-        popupAnchor: [0, -40] // Adjust popup position
+        iconSize: [30, 30], 
+        iconAnchor: [10, 10], 
+        popupAnchor: [0, -40] 
       });
     }
   };
@@ -2172,7 +2212,10 @@ const App = () => {
       <nav id="navbar" className="navbar navbar-expand-md navbar-dark blue fixed-top justify-content-between">
             <div className="container flex">
                 <a className="navbar-brand" href="https://uwec.ug/" target="_blank" rel="noopener noreferrer">
-                    <FaTree /> UWEC
+                  <FaPaw  className='ml-2 paw'/>
+                  <span >
+                    UWEC
+                  </span>
                 </a>
                 <button className="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarResponsive" aria-controls="navbarResponsive" aria-expanded="false" aria-label="Toggle navigation">
                     <span
@@ -2200,12 +2243,13 @@ const App = () => {
                 </button> */}
               </div>
               <div className="modal-body">
-                <p>This map was created by Jimmy for  Web Map Programming Master&rsquo;s degree program.</p>
+                <p>This map was created by by Alani Jimmy for Capstone in GIS Development project 2.</p>
                 <hr />
                 <h5>Data Sources</h5>
                 <p>UWEC: <a href='https://uwec.ug/product/chimpanzee-close-up/' target="_blank" rel="noopener noreferrer">UWEC</a></p>
-                <p>GEOSON <a href='https://api.mapbox.com/styles/v1/aleku399/clz70zcqi00r501pfh862a69g.html?title=view&access_token=pk.eyJ1IjoiYWxla3UzOTkiLCJhIjoiY2praDBkbXpzMDlxNjNrcDBqNGUwc3kzeSJ9.Jfwtzm5tQfXFiWBjIQUvUA&zoomwheel=true&fresh=true#15.41/0.051655/32.477589' target="_blank" rel="noopener noreferrer">GEOSON</a></p>
-                <p>Historic places adapted from: <a href="https://api.mapbox.com/styles/v1/aleku399/clz70zcqi00r501pfh862a69g.html?title=view&access_token=pk.eyJ1IjoiYWxla3UzOTkiLCJhIjoiY2praDBkbXpzMDlxNjNrcDBqNGUwc3kzeSJ9.Jfwtzm5tQfXFiWBjIQUvUA&zoomwheel=true&fresh=true#15.41/0.051655/32.477589" target="_blank" rel="noopener noreferrer">UWEC&rsquo;s  Zoo Historical Sites</a></p>
+                <p>
+                The Uganda Wildlife Education Center (UWEC) is a premier wildlife conservation and education facility located in Entebbe, Uganda. Established in 1994, UWEC is dedicated to the conservation of Uganda&apos;s rich biodiversity and the protection of endangered species. The center serves as a sanctuary for rescued and rehabilitated wildlife, offering a safe haven for animals that have been victims of illegal trafficking or habitat loss.
+                </p>
               </div>
               <div className="modal-footer">
                 <button type="button" className="btn btn-primary" onClick={toggleModal}>Close</button>
@@ -2248,6 +2292,13 @@ const App = () => {
                 style={style as any}
               />
             ))}
+             {userLocation && (
+                <Marker position={[userLocation.lat, userLocation.lng]} icon={createCustomIcon("/img/review.PNG")}>
+                  <Popup>
+                    <span>You are here</span>
+                  </Popup>
+                </Marker>
+              )}
               {animalMarkersState.map((marker, index) => (
                 <Marker key={index} position={[marker.lat, marker.lng]} icon={createCustomIcon(marker.img)}>
                   <Popup>{marker.type}</Popup>
@@ -2430,6 +2481,7 @@ const App = () => {
               onChange={handleChange} 
               required 
             />
+            {errors.date && <span className="text-danger">{errors.date}</span>}
           </div>
           
           <div className="form-group mb-3">
@@ -2443,6 +2495,7 @@ const App = () => {
               onChange={handleChange} 
               required 
             />
+            {errors.comments && <span className="text-danger">{errors.comments}</span>}
           </div>
           
           <div className="form-group mb-3">
@@ -2462,6 +2515,7 @@ const App = () => {
               <option value="4">4</option>
               <option value="5">5</option>
             </select>
+            {errors.rating && <span className="text-danger">{errors.rating}</span>}
           </div>
           
           <div className="form-group mb-3">
@@ -2474,6 +2528,7 @@ const App = () => {
               value={formData.issues} 
               onChange={handleChange} 
             />
+            {errors.issues && <span className="text-danger">{errors.issues}</span>}
           </div>
           
           <div className="form-group mb-3">
@@ -2495,6 +2550,7 @@ const App = () => {
               onChange={handleChange} 
               required 
             />
+             {errors.location && <span className="text-danger">{errors.location}</span>}
           </div>
           
           <input type="submit" value="Submit" className="btn btn-success mt-1" />
